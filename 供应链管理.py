@@ -22,7 +22,7 @@ import tkinter.messagebox
 root = tkinter.Tk()
 root.withdraw()
 
-# 2021-8-11
+# 2021-8-12
 class Ui_Form(object):
     def setupUi(self, Form):
         Form.setObjectName("Form")
