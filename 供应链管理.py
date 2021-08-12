@@ -14,6 +14,7 @@ import datetime
 import pymssql
 import numpy as np
 import pandas as pd
+import math
 import re
 import requests
 import tkinter
@@ -21,7 +22,7 @@ import tkinter.messagebox
 root = tkinter.Tk()
 root.withdraw()
 
-# 2021-7-24
+# 2021-8-11
 class Ui_Form(object):
     def setupUi(self, Form):
         Form.setObjectName("Form")
@@ -762,14 +763,38 @@ class Ui_Form(object):
         self.groupBox_4.setGeometry(QtCore.QRect(1030, 450, 334, 451))
         self.groupBox_4.setObjectName("groupBox_4")
         self.tabWidget.addTab(self.tab_4, "")
+        self.tab_5 = QtWidgets.QWidget()
+        self.tab_5.setObjectName("tab_5")
+        self.tableView_5 = QtWidgets.QTableView(self.tab_5)
+        self.tableView_5.setGeometry(QtCore.QRect(20, 150, 1331, 351))
+        self.tableView_5.setObjectName("tableView_5")
+        self.tableView_6 = QtWidgets.QTableView(self.tab_5)
+        self.tableView_6.setGeometry(QtCore.QRect(20, 510, 1331, 391))
+        self.tableView_6.setObjectName("tableView_6")
+        self.widget = QtWidgets.QWidget(self.tab_5)
+        self.widget.setGeometry(QtCore.QRect(20, 40, 571, 101))
+        self.widget.setObjectName("widget")
+        self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.widget)
+        self.horizontalLayout_3.setContentsMargins(0, 0, 0, 0)
+        self.horizontalLayout_3.setObjectName("horizontalLayout_3")
+        self.label_43 = QtWidgets.QLabel(self.widget)
+        self.label_43.setObjectName("label_43")
+        self.horizontalLayout_3.addWidget(self.label_43)
+        self.label_44 = QtWidgets.QLabel(self.widget)
+        self.label_44.setObjectName("label_44")
+        self.horizontalLayout_3.addWidget(self.label_44)
+        self.pushButton_25 = QtWidgets.QPushButton(self.widget)
+        self.pushButton_25.setObjectName("pushButton_25")
+        self.horizontalLayout_3.addWidget(self.pushButton_25)
+        self.tabWidget.addTab(self.tab_5, "")
 
         self.retranslateUi(Form)
-        self.tabWidget.setCurrentIndex(3)
+        self.tabWidget.setCurrentIndex(4)
         QtCore.QMetaObject.connectSlotsByName(Form)
 
     def retranslateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
-        Form.setWindowTitle(_translate("Form", "办公一体化系统"))
+        Form.setWindowTitle(_translate("Form", "1688工具"))
         self.label.setText(_translate("Form", "SKU"))
         self.label_2.setText(_translate("Form", "SPU"))
         self.label_3.setText(_translate("Form", "name"))
@@ -855,6 +880,10 @@ class Ui_Form(object):
         self.groupBox_3.setTitle(_translate("Form", "GroupBox"))
         self.groupBox_4.setTitle(_translate("Form", "GroupBox"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), _translate("Form", "数据登记"))
+        self.label_43.setText(_translate("Form", "时间："))
+        self.label_44.setText(_translate("Form", "月销售额："))
+        self.pushButton_25.setText(_translate("Form", "查询"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_5), _translate("Form", "仪表盘"))
 
 class MyFigure(FigureCanvas):
     def __init__(self,width=5, height=4, dpi=100):
@@ -1967,6 +1996,265 @@ def show_tu(self):
     F.fig.suptitle("15天关键词排名")
     F.axes1.legend(keywords, loc='upper left', fontsize=5)
 
+def show_gongying(self):
+    cp =configparser.ConfigParser()
+    cp.read('D:\配置\config.ini',encoding='utf-8')
+    host1 = cp.get('sql_connect', 'host')
+    user1 = cp.get('sql_connect', 'user')
+    passwd1 = cp.get('sql_connect', 'passwd')
+    db1 = cp.get('sql_connect', 'db')
+    conn = pymssql.connect(server=host1, user=user1, password=passwd1, database=db1)
+    conn1 = pymssql.connect(server=host1, user=user1, password=passwd1, database=db1)
+    sql1 = "select * from shangpin"
+    df1 = pd.DataFrame(pd.read_sql(sql1, conn1))
+    sql2 = "select * from dingdan"
+    df = pd.DataFrame(pd.read_sql(sql2, conn))
+    del df1['id']
+    now = datetime.datetime.now()
+    now = datetime.datetime.strftime(now, '%Y-%m-%d')
+    now = datetime.datetime.strptime(now, '%Y-%m-%d')
+    dates = []
+    df3 = pd.DataFrame()
+    for i in range(1, 8):
+        dates.append(now - datetime.timedelta(days=i))
+    df2 = df[(df.订单状态 != '交易关闭') & (df.订单创建时间 > dates[6]) & (df.订单创建时间 < dates[0] - datetime.timedelta(days=-1))]
+    df2 = pd.DataFrame(df2.groupby('货号', as_index=False).agg({'实付款': sum, '数量': sum, '运费': len}))
+    df2.sort_values(["数量"], ascending=False, inplace=True)
+    df2 = df2.rename(columns={'运费': '订单量'})
+    df2.reset_index(drop=True, inplace=True)
+    df2['订单量'] = df2['订单量'].apply(round)
+    df2.rename(columns={'货号': 'SKU'}, inplace=True)
+    df5 = pd.merge(df1, df2, how='left', on='SKU')
+    df5.drop(['SPU', 'url', 'price'], axis=1, inplace=True)
+
+    for date in dates:
+        df2 = df[(df['订单创建时间'] >= date) & (df['订单创建时间'] < date - datetime.timedelta(days=-1)) & (df.订单状态 != '交易关闭')]
+        df2 = pd.DataFrame(df2.groupby('货号', as_index=False).agg({'实付款': sum, '数量': sum, '运费': len}))
+        df2.sort_values(["数量"], ascending=False, inplace=True)
+        df2 = df2.rename(columns={'运费': '订单量'})
+        df2.reset_index(drop=True, inplace=True)
+        df2['订单量'] = df2['订单量'].apply(round)
+        df2.insert(4, '订单创建时间', date)
+        df3 = df3.append(df2)
+    df3['订单创建时间'] = df3['订单创建时间'].apply(lambda x: datetime.datetime.strftime(x, "%m-%d"))
+    pd.set_option('display.max_row', 500)
+    df4 = pd.pivot_table(df3, index=[u'货号'], columns=[u'订单创建时间'], values=[u'数量'])
+    df4.columns = df4.columns.droplevel(0)
+    df4 = df4.reset_index().rename_axis(None, axis=1)
+    df4[df4.columns[1]].fillna(0, inplace=True)
+    df4[df4.columns[1]] = df4[df4.columns[1]].apply(round)
+    df4[df4.columns[2]].fillna(0, inplace=True)
+    df4[df4.columns[2]] = df4[df4.columns[2]].apply(round)
+    df4[df4.columns[3]].fillna(0, inplace=True)
+    df4[df4.columns[3]] = df4[df4.columns[3]].apply(round)
+    df4[df4.columns[4]].fillna(0, inplace=True)
+    df4[df4.columns[4]] = df4[df4.columns[4]].apply(round)
+    df4[df4.columns[5]].fillna(0, inplace=True)
+    df4[df4.columns[5]] = df4[df4.columns[5]].apply(round)
+    df4[df4.columns[6]].fillna(0, inplace=True)
+    df4[df4.columns[6]] = df4[df4.columns[6]].apply(round)
+    df4.rename(columns={'货号': 'SKU'}, inplace=True)
+    if len(df4.columns) == 8:
+        df4[df4.columns[7]].fillna(0, inplace=True)
+        df4[df4.columns[7]] = df4[df4.columns[7]].apply(round)
+        df4.insert(8, '合计', df4[df4.columns[1]] + df4[df4.columns[2]] + df4[df4.columns[3]] + df4[df4.columns[4]] + df4[
+            df4.columns[5]] + df4[df4.columns[6]] + df4[df4.columns[7]])
+        df4.sort_values(["合计"], ascending=False, inplace=True)
+        df6 = pd.merge(df5, df4, how='left', on='SKU')
+        df6[df6.columns[3]].fillna(0, inplace=True)
+        df6[df6.columns[3]] = df6[df6.columns[3]].apply(round)
+        df6[df6.columns[4]].fillna(0, inplace=True)
+        df6[df6.columns[4]] = df6[df6.columns[4]].apply(round)
+        df6[df6.columns[5]].fillna(0, inplace=True)
+        df6[df6.columns[5]] = df6[df6.columns[5]].apply(round)
+        df6[df6.columns[6]].fillna(0, inplace=True)
+        df6[df6.columns[6]] = df6[df6.columns[6]].apply(round)
+        df6[df6.columns[7]].fillna(0, inplace=True)
+        df6[df6.columns[7]] = df6[df6.columns[7]].apply(round)
+        df6[df6.columns[8]].fillna(0, inplace=True)
+        df6[df6.columns[8]] = df6[df6.columns[8]].apply(round)
+        df6[df6.columns[9]].fillna(0, inplace=True)
+        df6[df6.columns[9]] = df6[df6.columns[9]].apply(round)
+        df6[df6.columns[10]].fillna(0, inplace=True)
+        df6[df6.columns[10]] = df6[df6.columns[10]].apply(round)
+        df6[df6.columns[11]].fillna(0, inplace=True)
+        df6[df6.columns[11]] = df6[df6.columns[11]].apply(round)
+        df6[df6.columns[12]].fillna(0, inplace=True)
+        df6[df6.columns[12]] = df6[df6.columns[12]].apply(round)
+        df6[df6.columns[13]].fillna(0, inplace=True)
+        df6[df6.columns[13]] = df6[df6.columns[13]].apply(round)
+    else:
+        df4.insert(7, '合计', df4[df4.columns[1]] + df4[df4.columns[2]] + df4[df4.columns[3]] + df4[df4.columns[4]] + df4[
+            df4.columns[5]] + df4[df4.columns[6]])
+        df4.sort_values(["合计"], ascending=False, inplace=True)
+        df6 = pd.merge(df5, df4, how='left', on='SKU')
+        df6[df6.columns[3]].fillna(0, inplace=True)
+        df6[df6.columns[3]] = df6[df6.columns[3]].apply(round)
+        df6[df6.columns[4]].fillna(0, inplace=True)
+        df6[df6.columns[4]] = df6[df6.columns[4]].apply(round)
+        df6[df6.columns[5]].fillna(0, inplace=True)
+        df6[df6.columns[5]] = df6[df6.columns[5]].apply(round)
+        df6[df6.columns[6]].fillna(0, inplace=True)
+        df6[df6.columns[6]] = df6[df6.columns[6]].apply(round)
+        df6[df6.columns[7]].fillna(0, inplace=True)
+        df6[df6.columns[7]] = df6[df6.columns[7]].apply(round)
+        df6[df6.columns[8]].fillna(0, inplace=True)
+        df6[df6.columns[8]] = df6[df6.columns[8]].apply(round)
+        df6[df6.columns[9]].fillna(0, inplace=True)
+        df6[df6.columns[9]] = df6[df6.columns[9]].apply(round)
+        df6[df6.columns[10]].fillna(0, inplace=True)
+        df6[df6.columns[10]] = df6[df6.columns[10]].apply(round)
+        df6[df6.columns[11]].fillna(0, inplace=True)
+        df6[df6.columns[11]] = df6[df6.columns[11]].apply(round)
+        df6[df6.columns[12]].fillna(0, inplace=True)
+        df6[df6.columns[12]] = df6[df6.columns[12]].apply(round)
+    df6.drop(['实付款', '合计'], axis=1, inplace=True)
+    df6.sort_values(["数量"], ascending=False, inplace=True)
+    df6.insert(4, '周转天数', round(df6['stock'] / (df6['数量'] / 7)))
+    df6['周转天数'] = df6['周转天数'].apply(lambda x: 0 if math.isinf(x) else x)
+    df6['周转天数'].fillna(0, inplace=True)
+    df6['周转天数'] = df6['周转天数'].apply(round)
+    df6 = df6.reset_index(drop=True)
+
+    model = QStandardItemModel()
+    for i in range(0, int(df6.shape[1])):
+        model.setHorizontalHeaderItem(i, QtGui.QStandardItem(df6.columns[i]))
+        for j in range(0, int(df6.shape[0]) ):
+            model.setItem(j, i, QtGui.QStandardItem(str(df6.iat[j, i])))
+    ui.tableView_5.setModel(model)
+    ui.tableView_5.setColumnWidth(0, 100)
+    ui.tableView_5.setColumnWidth(1, 70)
+    ui.tableView_5.setColumnWidth(2, 70)
+    ui.tableView_5.setColumnWidth(3, 70)
+    ui.tableView_5.setColumnWidth(4, 70)
+    ui.tableView_5.setColumnWidth(5, 70)
+    ui.tableView_5.setColumnWidth(6, 70)
+    ui.tableView_5.setColumnWidth(7, 70)
+    ui.tableView_5.setColumnWidth(8, 70)
+    ui.tableView_5.setColumnWidth(9, 70)
+    ui.tableView_5.setColumnWidth(10, 70)
+    ui.tableView_5.setColumnWidth(11, 70)
+    ui.tableView_5.setColumnWidth(12, 70)
+
+    now = datetime.datetime.now()
+    now = datetime.datetime.strftime(now, '%Y-%m-%d')
+    now = datetime.datetime.strptime(now, '%Y-%m-%d')
+    dates = []
+    df3 = pd.DataFrame()
+    for i in range(1, 8):
+        dates.append(now - datetime.timedelta(days=i))
+    df2 = df[(df.订单状态 != '交易关闭') & (df.订单创建时间 > dates[6]) & (df.订单创建时间 < dates[0] - datetime.timedelta(days=-1))]
+    df2 = pd.DataFrame(df2.groupby('买家公司名', as_index=False).agg({'实付款': sum, '数量': sum, '运费': len}))
+    df2.sort_values(["数量"], ascending=False, inplace=True)
+    df2 = df2.rename(columns={'运费': '订单量'})
+    df2.reset_index(drop=True, inplace=True)
+    df2['订单量'] = df2['订单量'].apply(round)
+    df5 = df2
+
+    for date in dates:
+        df2 = df[(df['订单创建时间'] >= date) & (df['订单创建时间'] < date - datetime.timedelta(days=-1)) & (df.订单状态 != '交易关闭')]
+        df2 = pd.DataFrame(df2.groupby('买家公司名', as_index=False).agg({'实付款': sum, '数量': sum, '运费': len}))
+        df2.sort_values(["数量"], ascending=False, inplace=True)
+        df2 = df2.rename(columns={'运费': '订单量'})
+        df2.reset_index(drop=True, inplace=True)
+        df2['订单量'] = df2['订单量'].apply(round)
+        df2.insert(4, '订单创建时间', date)
+        df3 = df3.append(df2)
+    df3['订单创建时间'] = df3['订单创建时间'].apply(lambda x: datetime.datetime.strftime(x, "%m-%d"))
+    df4 = pd.pivot_table(df3, index=[u'买家公司名'], columns=[u'订单创建时间'], values=[u'数量'])
+    df4.columns = df4.columns.droplevel(0)
+    df4 = df4.reset_index().rename_axis(None, axis=1)
+    df4[df4.columns[1]].fillna(0, inplace=True)
+    df4[df4.columns[1]] = df4[df4.columns[1]].apply(round)
+    df4[df4.columns[2]].fillna(0, inplace=True)
+    df4[df4.columns[2]] = df4[df4.columns[2]].apply(round)
+    df4[df4.columns[3]].fillna(0, inplace=True)
+    df4[df4.columns[3]] = df4[df4.columns[3]].apply(round)
+    df4[df4.columns[4]].fillna(0, inplace=True)
+    df4[df4.columns[4]] = df4[df4.columns[4]].apply(round)
+    df4[df4.columns[5]].fillna(0, inplace=True)
+    df4[df4.columns[5]] = df4[df4.columns[5]].apply(round)
+    df4[df4.columns[6]].fillna(0, inplace=True)
+    df4[df4.columns[6]] = df4[df4.columns[6]].apply(round)
+    if len(df4.columns) == 8:
+        df4[df4.columns[7]].fillna(0, inplace=True)
+        df4[df4.columns[7]] = df4[df4.columns[7]].apply(round)
+        df4.insert(8, '合计', df4[df4.columns[1]] + df4[df4.columns[2]] + df4[df4.columns[3]] + df4[df4.columns[4]] + df4[
+            df4.columns[5]] + df4[df4.columns[6]] + df4[df4.columns[7]])
+        df4.sort_values(["合计"], ascending=False, inplace=True)
+        df6 = pd.merge(df5, df4, how='left', on='买家公司名')
+        df6[df6.columns[3]].fillna(0, inplace=True)
+        df6[df6.columns[3]] = df6[df6.columns[3]].apply(round)
+        df6[df6.columns[4]].fillna(0, inplace=True)
+        df6[df6.columns[4]] = df6[df6.columns[4]].apply(round)
+        df6[df6.columns[5]].fillna(0, inplace=True)
+        df6[df6.columns[5]] = df6[df6.columns[5]].apply(round)
+        df6[df6.columns[6]].fillna(0, inplace=True)
+        df6[df6.columns[6]] = df6[df6.columns[6]].apply(round)
+        df6[df6.columns[7]].fillna(0, inplace=True)
+        df6[df6.columns[7]] = df6[df6.columns[7]].apply(round)
+        df6[df6.columns[8]].fillna(0, inplace=True)
+        df6[df6.columns[8]] = df6[df6.columns[8]].apply(round)
+        df6[df6.columns[9]].fillna(0, inplace=True)
+        df6[df6.columns[9]] = df6[df6.columns[9]].apply(round)
+        df6[df6.columns[10]].fillna(0, inplace=True)
+        df6[df6.columns[10]] = df6[df6.columns[10]].apply(round)
+        df6[df6.columns[11]].fillna(0, inplace=True)
+        df6[df6.columns[11]] = df6[df6.columns[11]].apply(round)
+    else:
+        df4.insert(7, '合计', df4[df4.columns[1]] + df4[df4.columns[2]] + df4[df4.columns[3]] + df4[df4.columns[4]] + df4[
+            df4.columns[5]] + df4[df4.columns[6]])
+        df4.sort_values(["合计"], ascending=False, inplace=True)
+        df6 = pd.merge(df5, df4, how='left', on='买家公司名')
+        df6[df6.columns[3]].fillna(0, inplace=True)
+        df6[df6.columns[3]] = df6[df6.columns[3]].apply(round)
+        df6[df6.columns[4]].fillna(0, inplace=True)
+        df6[df6.columns[4]] = df6[df6.columns[4]].apply(round)
+        df6[df6.columns[5]].fillna(0, inplace=True)
+        df6[df6.columns[5]] = df6[df6.columns[5]].apply(round)
+        df6[df6.columns[6]].fillna(0, inplace=True)
+        df6[df6.columns[6]] = df6[df6.columns[6]].apply(round)
+        df6[df6.columns[7]].fillna(0, inplace=True)
+        df6[df6.columns[7]] = df6[df6.columns[7]].apply(round)
+        df6[df6.columns[8]].fillna(0, inplace=True)
+        df6[df6.columns[8]] = df6[df6.columns[8]].apply(round)
+        df6[df6.columns[9]].fillna(0, inplace=True)
+        df6[df6.columns[9]] = df6[df6.columns[9]].apply(round)
+        df6[df6.columns[10]].fillna(0, inplace=True)
+        df6[df6.columns[10]] = df6[df6.columns[10]].apply(round)
+    df6.drop(['实付款', '合计'], axis=1, inplace=True)
+    df6.sort_values(["数量"], ascending=False, inplace=True)
+
+    model = QStandardItemModel()
+    for i in range(0, int(df6.shape[1])):
+        model.setHorizontalHeaderItem(i, QtGui.QStandardItem(df6.columns[i]))
+        for j in range(0, int(df6.shape[0]) ):
+            model.setItem(j, i, QtGui.QStandardItem(str(df6.iat[j, i])))
+    ui.tableView_6.setModel(model)
+    ui.tableView_6.setColumnWidth(0, 250)
+    ui.tableView_6.setColumnWidth(1, 70)
+    ui.tableView_6.setColumnWidth(2, 70)
+    ui.tableView_6.setColumnWidth(3, 70)
+    ui.tableView_6.setColumnWidth(4, 70)
+    ui.tableView_6.setColumnWidth(5, 70)
+    ui.tableView_6.setColumnWidth(6, 70)
+    ui.tableView_6.setColumnWidth(7, 70)
+    ui.tableView_6.setColumnWidth(8, 70)
+    ui.tableView_6.setColumnWidth(9, 70)
+
+    conn1 = pymssql.connect(server=host1, user=user1, password=passwd1, database=db1)
+    sql1 = "select * from dingdan"
+    df = pd.DataFrame(pd.read_sql(sql1, conn1))
+    df.insert(1, '月份', 'a')
+    df1 = df[(df.订单状态 != '交易关闭') & (df.实付款 > 0)]
+    df1['月份'] = df1['订单创建时间'].apply(lambda x: datetime.datetime.strftime(x, "%Y-%m"))
+    df2 = pd.DataFrame(df1.groupby('月份', as_index=False).agg({'实付款': sum, '数量': len}))
+    df2.sort_values(by=['月份'], ascending=False, inplace=True)
+    df2.reset_index(drop=True, inplace=True)
+    ui.label_44.setText('月销售额：'+str(round(df2.at[0, '实付款'])))
+
+
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     mainWindow = QMainWindow()
@@ -1983,6 +2271,7 @@ if __name__ == '__main__':
     ui.lineEdit_6.setText('0')
     ui.lineEdit_23.setText('0')
     ui.lineEdit_27.setText(datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d'))
+    ui.label_43.setText(datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d'))
     ui.lineEdit_36.setText('10')
     now = datetime.datetime.now() - datetime.timedelta(days=1)
     now = datetime.datetime.strftime(now, '%Y-%m-%d')
@@ -2036,6 +2325,8 @@ if __name__ == '__main__':
     btn23.clicked.connect(delete_gou)
     btn24 = ui.pushButton_24
     btn24.clicked.connect(allinsert_gou)
+    btn25 = ui.pushButton_25
+    btn25.clicked.connect(show_gongying)
 
     btn26 = ui.pushButton_26
     btn26.clicked.connect(check_shuju)
@@ -2057,4 +2348,6 @@ if __name__ == '__main__':
     btn34.clicked.connect(delete_shuju)
     btn35 = ui.pushButton_35
     btn35.clicked.connect(show_tu)
+
+
     sys.exit(app.exec_())
